@@ -22,12 +22,6 @@
 <main>
   <!-- ================= SIMULATE ================= -->
   <section id="view-sim">
-    <div class="intro">
-      <h1>Five servers, one shared log. What happens when things break?</h1>
-      <p>Raft keeps several servers in agreement about an ordered list of commands, even when messages
-        get lost or servers crash. Pick a failure below, press <b>Run</b>, and watch.</p>
-    </div>
-
     <form class="setup" id="setup">
       <label class="field grow">
         <span>Failure</span>
@@ -52,33 +46,17 @@
 
     <section class="verdict" id="verdict" hidden></section>
 
-    <div class="pair-grid">
-      <figure class="card">
-        <div class="card-h">
-          <h2>The cluster</h2>
-          <span class="card-sub" id="netstate"></span>
+    <div class="card stage">
+      <div class="stage-grid">
+        <div class="stage-left">
+          <p class="stage-note" id="netstate"></p>
+          <svg id="cluster" viewBox="0 0 440 370" role="img" aria-label="Diagram of the five servers"></svg>
         </div>
-        <svg id="cluster" viewBox="0 0 440 370" role="img" aria-label="Diagram of the five servers"></svg>
-        <figcaption class="legend">
-          <span><i class="dot leader"></i>leader</span>
-          <span><i class="dot candidate"></i>asking for votes</span>
-          <span><i class="dot follower"></i>follower</span>
-          <span><i class="dot crashed"></i>crashed</span>
-          <span><i class="dot msg"></i>message in flight</span>
-          <span><b class="x">×</b>message lost</span>
-        </figcaption>
-      </figure>
-
-      <div class="card">
-        <div class="card-h">
+        <div class="stage-right">
           <h2>What's happening</h2>
-          <span class="card-sub" id="committed"></span>
+          <ol class="story" id="story"></ol>
         </div>
-        <ol class="story" id="story"></ol>
       </div>
-    </div>
-
-    <div class="card player">
       <div class="controls">
         <button class="play" id="b-play" title="Play / pause (Space)" aria-label="Play">▶</button>
         <div class="clock"><b id="clock">0</b> ms <span id="clockof"></span></div>
@@ -86,50 +64,52 @@
           <button class="iconbtn" id="b-prev" title="Previous event (←)" aria-label="Previous event">‹</button>
           <button class="iconbtn" id="b-next" title="Next event (→)" aria-label="Next event">›</button>
         </div>
-        <label class="speed">Speed
-          <select id="speed">
-            <option value="25">slow</option>
-            <option value="100" selected>normal</option>
-            <option value="400">fast</option>
-            <option value="1500">very fast</option>
-          </select>
-        </label>
+        <select id="speed" aria-label="Playback speed">
+          <option value="25">Slow</option>
+          <option value="100" selected>Normal speed</option>
+          <option value="400">Fast</option>
+          <option value="1500">Very fast</option>
+        </select>
         <span class="spacer"></span>
         <button class="btn danger" id="b-viol" type="button" hidden>Show the problem</button>
       </div>
       <canvas id="lanes" aria-label="Timeline: click or drag to move through the run"></canvas>
-      <p class="hint lanes-hint">Each row is one server over time. Green = leader, amber = asking for votes, hatched = crashed.
-        The top row shows network problems. Red lines mark where a safety rule broke. Click or drag to move through the run.</p>
+      <p class="key">
+        <span><i class="sw leader"></i>leader</span>
+        <span><i class="sw candidate"></i>election</span>
+        <span><i class="sw crashed"></i>crashed</span>
+        <span><i class="sw part"></i>network split</span>
+        <span><i class="sw bad"></i>rule broken</span>
+        <span class="hint">Click the timeline to jump.</span>
+      </p>
     </div>
 
     <div class="card">
       <div class="card-h">
-        <h2>Each server's log</h2>
+        <h2>Logs</h2>
+        <p class="key inline">
+          <span><i class="cellkey"></i>committed</span>
+          <span><i class="cellkey open"></i>not yet</span>
+          <span><i class="cellkey ring"></i>conflict</span>
+          <span class="hint">color = term</span>
+        </p>
       </div>
-      <p class="hint pad">Each square is one command. <b>Filled</b> means committed: stored on a majority and
-        guaranteed to stay. <b>Outlined</b> means not committed yet. Color shows which term (election round) wrote it.
-        A <b class="bad-text">red ring</b> means it conflicts with committed data.</p>
       <div id="logmatrix" class="logmatrix"></div>
     </div>
 
-    <details class="card more" id="stats">
-      <summary>Run statistics</summary>
-      <table class="stats" id="statstable"></table>
-    </details>
-
     <details class="card more" id="evdetails">
-      <summary>Full event log <span class="hint">every message and state change</span></summary>
+      <summary>Details</summary>
+      <table class="stats" id="statstable"></table>
       <div class="evtools">
         <div class="chips" id="chips"></div>
-        <input id="search" type="search" placeholder="Search…">
+        <input id="search" type="search" placeholder="Search events…">
       </div>
       <div id="evlist" class="evlist"></div>
     </details>
 
     <p class="foot">
-      <span id="mode"></span>
       <button class="textbtn" id="b-link" type="button">Copy link to this moment</button>
-      <a class="textbtn" id="b-classic" target="_blank" rel="noopener">Open text-style timeline</a>
+      <a class="textbtn" id="b-classic" target="_blank" rel="noopener">Text timeline</a>
     </p>
   </section>
 
@@ -137,9 +117,7 @@
   <section id="view-cmp" hidden>
     <div class="intro">
       <h1>Which election timeout recovers better?</h1>
-      <p>The election timeout is how long a server waits without hearing from the leader before starting an election.
-        Short means fast recovery but more needless elections. This runs both settings on the <b>same</b> failures and
-        seeds and compares them.</p>
+      <p>Both settings run on the same failures and seeds.</p>
     </div>
     <div class="card cmp-form">
       <fieldset>

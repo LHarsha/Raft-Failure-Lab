@@ -280,18 +280,14 @@ function load(d) {
 function renderVerdict() {
   const v = $("#verdict"), m = RUN.metrics, vs = RUN.violations;
   const avail = Math.round(100 * (1 - m.leaderless_ms / RUN.end));
-  const summary = `A usable leader existed ${avail}% of the time · ${m.commits} entries committed · ${m.elections} election${m.elections === 1 ? "" : "s"}` +
-    (m.lost ? ` · ${m.lost} uncommitted client command${m.lost === 1 ? " was" : "s were"} dropped` : "");
-  const checks = META.invariants.map(inv => {
-    const mine = vs.filter(x => x.invariant === inv.id);
-    return mine.length
-      ? `<li class="fail">${esc(inv.desc)} <button class="textbtn" type="button" data-seek="${mine[0].time}">see where (${mine[0].time} ms)</button></li>`
-      : `<li>${esc(inv.desc)}</li>`;
-  }).join("");
+  const summary = `leader available ${avail}% of the time · ${m.commits} entries committed · ${m.elections} election${m.elections === 1 ? "" : "s"}`;
+  // when safe, one line is enough; list the broken rules only when something failed
+  const broken = META.invariants.map(inv => vs.filter(x => x.invariant === inv.id)).filter(m => m.length)
+    .map(m => `<li class="fail">${esc(PLAIN_INVARIANT[m[0].invariant])} <button class="textbtn" type="button" data-seek="${m[0].time}">see where (${m[0].time} ms)</button></li>`).join("");
   v.className = "verdict" + (vs.length ? " bad" : "");
   v.innerHTML = vs.length
-    ? `<h2>Unsafe: Raft's guarantees were broken.</h2><p>${esc(PLAIN_INVARIANT[vs[0].invariant])} at ${vs[0].time} ms. ${summary}.</p><ul>${checks}</ul>`
-    : `<h2>Safe: all of Raft's guarantees held.</h2><p>${summary}.</p><ul>${checks}</ul>`;
+    ? `<h2>✕ Unsafe</h2><p>${summary}</p><ul>${broken}</ul>`
+    : `<h2>✓ Safe</h2><p>All three of Raft's guarantees held · ${summary}</p>`;
   v.hidden = false;
   $$("[data-seek]", v).forEach(b => b.onclick = () => seek(+b.dataset.seek));
   $("#b-viol").hidden = !vs.length;
@@ -347,9 +343,9 @@ function renderNodes(st) {
   const bits = [];
   if (st.groups) bits.push(`<span style="color:var(--part)">network split</span>`);
   if (st.net && (st.net.drop || st.net.dup || st.net.delay[1] > META.default_delay[1])) bits.push(`<span style="color:var(--degraded)">unreliable network</span>`);
-  $("#netstate").innerHTML = bits.length ? bits.join(" · ") : "network healthy";
   const committed = Math.max(0, ...st.commit.map((c, i) => st.alive[i] ? c : 0));
-  $("#committed").textContent = `${committed} entr${committed === 1 ? "y" : "ies"} committed so far`;
+  bits.push(`${committed} committed`);
+  $("#netstate").innerHTML = (st.groups || bits.length > 1 ? "" : "network healthy · ") + bits.join(" · ");
 }
 
 function renderMsgs(t) {
@@ -385,7 +381,7 @@ function renderStory() {
     box.innerHTML = `<li class="empty">${P.t === 0 ? "Press ▶ to start. Nothing has happened yet." : "Nothing notable yet. The cluster is quietly copying log entries."}</li>`;
     return;
   }
-  box.innerHTML = shown.slice(-8).reverse().map((s, k) =>
+  box.innerHTML = shown.slice(-6).reverse().map((s, k) =>
     `<li class="${s.cls}${k === 0 ? " now" : ""}" data-t="${s.time}"><span class="when">${s.time} ms</span><span class="what">${esc(s.text)}</span></li>`).join("");
   $$("li[data-t]", box).forEach(li => li.onclick = () => seek(+li.dataset.t));
 }
@@ -881,7 +877,6 @@ async function init() {
     $("#boot").hidden = false;
     return;
   }
-  $("#mode").textContent = API.mode === "browser" ? "Running entirely in your browser." : "Running on your local Python server.";
   buildSetup(); buildEventLog(); buildCompareForm(); bindPlayer(); bindLanes(); bindTip();
   $$(".tabs button").forEach(b => b.onclick = () => showView(b.dataset.view));
   new ResizeObserver(() => { P.shownIdx = -2; }).observe($("#logmatrix"));
