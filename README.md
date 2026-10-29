@@ -37,7 +37,11 @@ package runs in your browser through [Pyodide](https://pyodide.org) (Python on W
 inside a Web Worker. It answers the same API as the local server via `ui.handle()`, so a seed
 gives exactly the same run online and locally. The first load takes 10–15 seconds while Python downloads.
 
-Deploy your own copy (static, any host):
+Every push to `main` runs the test suite in GitHub Actions and, if it passes, redeploys the
+site to Cloudflare (`.github/workflows/deploy.yml`). That needs a repository secret named
+`CLOUDFLARE_API_TOKEN`, created from Cloudflare's "Edit Cloudflare Workers" token template.
+
+Deploy your own copy manually (static, any host):
 
 ```bash
 python -m labsim build-site --out _site
