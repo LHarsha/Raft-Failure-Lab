@@ -32,20 +32,20 @@ python -m unittest discover -s tests -v
 
 ## Live demo
 
-**https://raft-failure-lab.harshalolewar002.workers.dev**: no install needed. There is no backend; the `labsim`
+**https://raft-failure-lab.pages.dev**: no install needed. There is no backend; the `labsim`
 package runs in your browser through [Pyodide](https://pyodide.org) (Python on WebAssembly)
 inside a Web Worker. It answers the same API as the local server via `ui.handle()`, so a seed
 gives exactly the same run online and locally. The first load takes 10–15 seconds while Python downloads.
 
 Every push to `main` runs the test suite in GitHub Actions and, if it passes, redeploys the
 site to Cloudflare (`.github/workflows/deploy.yml`). That needs a repository secret named
-`CLOUDFLARE_API_TOKEN`, created from Cloudflare's "Edit Cloudflare Workers" token template.
+`CLOUDFLARE_API_TOKEN`: a Cloudflare API token with the **Account → Cloudflare Pages → Edit** permission.
 
 Deploy your own copy manually (static, any host):
 
 ```bash
 python -m labsim build-site --out _site
-npx wrangler deploy             # Cloudflare Workers static assets, see wrangler.toml
+npx wrangler pages deploy       # Cloudflare Pages, see wrangler.toml
 ```
 
 ## Scenarios

@@ -1,9 +1,5 @@
-# Cloudflare Workers static assets: the whole app is static files.
-# Build with `python -m labsim build-site --out _site`, then `npx wrangler deploy`.
+# Cloudflare Pages: the whole app is static files, served at https://raft-failure-lab.pages.dev
+# Build with `python -m labsim build-site --out _site`, then `npx wrangler pages deploy`.
 name = "raft-failure-lab"
-account_id = "2f29cf4ec1b7326427e00ee18252430f"
+pages_build_output_dir = "./_site"
 compatibility_date = "2026-10-01"
-
-[assets]
-directory = "./_site"
-not_found_handling = "404-page"

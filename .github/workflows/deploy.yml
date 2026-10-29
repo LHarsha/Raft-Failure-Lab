@@ -49,4 +49,5 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: deploy
+          accountId: 2f29cf4ec1b7326427e00ee18252430f
+          command: pages deploy _site --project-name raft-failure-lab --branch main
