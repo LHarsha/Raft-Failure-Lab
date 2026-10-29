@@ -66,6 +66,51 @@ const METRIC_TILES = [["first_leader_ms", "First leader", "ms"], ["leaderless_ms
   ["max_gap_ms", "Longest gap", "ms"], ["elections", "Elections", ""], ["max_term", "Highest term", ""],
   ["commits", "Entries committed", ""], ["latency_ms", "Commit latency", "ms"], ["lost", "Lost writes", ""]];
 
+// ---------------------------------------------------------------- API
+/* Two runtimes, one interface. With `python -m labsim ui` the JSON API is served
+   by the local Python server. On the static GitHub Pages build there is no
+   server, so a Web Worker runs the same labsim code in Pyodide and answers the
+   same paths through ui.handle(). */
+const API = {
+  mode: "server", worker: null, pending: new Map(), seq: 0,
+  async init() {
+    try {
+      const r = await fetch("api/meta");
+      if (r.ok && (r.headers.get("content-type") || "").includes("json")) return;
+    } catch { /* no server: fall through to the browser runtime */ }
+    this.mode = "browser";
+    $("#boot").hidden = false;
+    this.worker = new Worker("static/pyworker.js");
+    await new Promise((resolve, reject) => {
+      this.worker.onmessage = ({ data }) => {
+        if (data.type === "ready") resolve();
+        else if (data.type === "error") reject(new Error(data.error));
+        else { const cb = this.pending.get(data.id); this.pending.delete(data.id); if (cb) cb(data); }
+      };
+      this.worker.onerror = e => reject(new Error(e.message || "worker failed to start"));
+      this.worker.postMessage({ type: "init", base: new URL("py/", location.href).href });
+    });
+    $("#boot").hidden = true;
+  },
+  async get(path) {   // path like "/api/run?…"; returns {ok, status, text}
+    if (this.mode === "server") {
+      const r = await fetch(path.slice(1));
+      return { ok: r.ok, status: r.status, text: await r.text() };
+    }
+    const id = ++this.seq;
+    const { status, body } = await new Promise(res => { this.pending.set(id, res); this.worker.postMessage({ id, path }); });
+    return { ok: status < 300, status, text: body };
+  },
+  async json(path) {
+    const r = await this.get(path);
+    const d = JSON.parse(r.text);
+    if (!r.ok) throw new Error(d.error || "HTTP " + r.status);
+    return d;
+  },
+  // simulations run ~3x slower in WebAssembly than in native Python
+  get slowdown() { return this.mode === "browser" ? 3 : 1; },
+};
+
 // ---------------------------------------------------------------- state
 let META = null;   // /api/meta
 let RUN = null;    // prepared run
@@ -192,9 +237,7 @@ async function run(autoplay) {
   const btn = $("#runbtn");
   btn.disabled = true; btn.textContent = "Simulating…"; $("#err").textContent = "";
   try {
-    const r = await fetch("/api/run?" + q), d = await r.json();
-    if (!r.ok) throw new Error(d.error || r.statusText);
-    load(d);
+    load(await API.json("/api/run?" + q));
     history.replaceState(null, "", "#" + q);
     setPlaying(!!autoplay);
   } catch (err) {
@@ -216,7 +259,7 @@ function renderStatic() {
   const bad = RUN.violations.length > 0;
   $("#runpill").className = "runpill" + (bad ? " bad" : "");
   $("#runpill").innerHTML = `<i class="dot"></i>${esc(RUN.scenario)} · seed ${RUN.seed} · ${RUN.timeout[0]}–${RUN.timeout[1]} ms`;
-  $("#b-classic").href = RUN.timeline_url;
+  $("#b-classic").href = RUN.timeline_url.slice(1);
   $("#b-viol").hidden = !bad;
   $("#clockof").textContent = ` / ${RUN.end}`;
   // invariants
@@ -608,9 +651,17 @@ function bindTransport() {
   $("#b-prev").onclick = () => stepEvent(-1);
   $("#b-next").onclick = () => stepEvent(1);
   $("#b-viol").onclick = nextViolation;
+  $("#b-classic").addEventListener("click", async e => {
+    if (API.mode === "server" || !RUN) return;
+    e.preventDefault();
+    const w = window.open("", "_blank");
+    const r = await API.get(RUN.timeline_url);
+    const url = URL.createObjectURL(new Blob([r.text], { type: "text/html" }));
+    if (w) w.location = url; else location.href = url;
+  });
   $("#speed").onchange = e => { P.rate = +e.target.value; };
   $("#b-link").onclick = async () => {
-    const url = `${location.origin}/${location.hash.split("&t=")[0]}&t=${Math.round(P.t)}`;
+    const url = `${location.href.split("#")[0]}${location.hash.split("&t=")[0]}&t=${Math.round(P.t)}`;
     try { await navigator.clipboard.writeText(url); toast("Link copied: it reopens this run at " + Math.round(P.t) + " ms"); }
     catch { toast(url); }
   };
@@ -722,13 +773,13 @@ function cmpSel() { return $$("#cmpscen .chip.on").map(c => c.dataset.s); }
 function cmpCount() {
   const k = cmpSel().length, s = Math.max(0, +$("#s1").value - +$("#s0").value + 1);
   const runs = 2 * k * s;
-  $("#cmpcount").textContent = `${runs} simulations · about ${Math.max(1, Math.round(runs * 0.035))} s`;
+  $("#cmpcount").textContent = `${runs} simulations · about ${Math.max(1, Math.round(runs * 0.035 * API.slowdown))} s`;
   return runs;
 }
 async function runCompare() {
   const scen = cmpSel();
   if (!scen.length) { $("#cmperr").textContent = "Pick at least one scenario."; return; }
-  const runs = cmpCount(), est = Math.max(0.5, runs * 0.035);
+  const runs = cmpCount(), est = Math.max(0.5, runs * 0.035 * API.slowdown);
   const q = new URLSearchParams({ seeds: `${$("#s0").value}..${$("#s1").value}`, scenarios: scen.join(",") });
   const btn = $("#cmpbtn"), prog = $("#cmpprog"), bar = $("i", prog);
   btn.disabled = true; btn.textContent = "Running…"; $("#cmperr").textContent = "";
@@ -736,9 +787,7 @@ async function runCompare() {
   const t0 = performance.now();
   const tick = setInterval(() => { bar.style.width = Math.min(92, (performance.now() - t0) / 1000 / est * 92) + "%"; }, 200);
   try {
-    const r = await fetch("/api/compare?" + q), d = await r.json();
-    if (!r.ok) throw new Error(d.error || r.statusText);
-    CMP = d;
+    CMP = await API.json("/api/compare?" + q);
     bar.style.width = "100%";
     renderCompare();
   } catch (err) { $("#cmperr").textContent = err.message; }
@@ -824,7 +873,7 @@ let findingsLoaded = false;
 async function loadFindings() {
   if (findingsLoaded) return;
   try {
-    const d = await (await fetch("/api/findings")).json();
+    const d = await API.json("/api/findings");
     const { html, toc } = renderMarkdown(d.markdown);
     $("#findings").innerHTML = html;
     $("#toc").innerHTML = `<h3 style="padding:0 10px">Contents</h3>` + toc.map(([id, t]) => `<a href="#" data-to="${id}">${esc(t)}</a>`).join("");
@@ -861,11 +910,17 @@ function renderMarkdown(src) {
 async function init() {
   initTheme();
   try {
-    META = await (await fetch("/api/meta")).json();
+    await API.init();
+    META = await API.json("/api/meta");
   } catch (err) {
-    $("#err").textContent = "Cannot reach the lab server: " + err.message;
+    $("#bootmsg").textContent = "Could not start the simulator: " + err.message;
+    $("#boot").hidden = false;
     return;
   }
+  $("#mode").textContent = API.mode === "browser" ? "Python running in your browser" : "local Python server";
+  $("#mode").title = API.mode === "browser"
+    ? "No server: the labsim package runs client-side via Pyodide (WebAssembly). Same code, same seeds, same results."
+    : "Served by python -m labsim ui";
   buildSidebar(); buildChips(); buildLegend(); buildCompareForm(); bindTransport(); bindKeys(); bindViews(); bindLanes(); bindTip();
   new ResizeObserver(() => { P.shownIdx = -2; }).observe($("#logmatrix"));
   const h = new URLSearchParams(location.hash.slice(1));

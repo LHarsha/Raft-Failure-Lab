@@ -6,7 +6,6 @@ strategies, read FINDINGS.md. Standard library only; serves on 127.0.0.1.
 """
 
 import json
-import webbrowser
 from pathlib import Path
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -207,6 +206,7 @@ def serve(port=8000, open_browser=True):
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"Raft Failure Lab running at {url}  (Ctrl+C to stop)")
     if open_browser:
+        import webbrowser
         webbrowser.open(url)
     try:
         server.serve_forever()

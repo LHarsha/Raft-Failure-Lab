@@ -269,3 +269,14 @@ table.cmp tr.first td { border-top: 1px solid var(--line2); }
   .charts { grid-template-columns: 1fr; }
   .md { padding: 4px 16px 16px; }
 }
+
+/* ---------- runtime badge + boot overlay ---------- */
+.mode { font-size: 11px; color: var(--muted); border: 1px dashed var(--line2); border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+.mode:empty { display: none; }
+.boot { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(6px); }
+.boot-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 32px; text-align: center; max-width: 380px; box-shadow: var(--shadow); }
+.boot-card b { display: block; font-size: 16px; margin-top: 14px; }
+.boot-card p { color: var(--muted); margin: 6px 0 0; font-size: 13px; }
+.spinner { width: 34px; height: 34px; margin: 0 auto; border-radius: 50%; border: 3px solid var(--line2); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) { .mode { display: none; } }

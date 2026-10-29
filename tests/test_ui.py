@@ -21,8 +21,8 @@ class PageTest(unittest.TestCase):
         status, ctype, body = get("/")
         self.assertEqual(status, 200)
         self.assertIn("text/html", ctype)
-        self.assertIn("/static/app.js", body)
-        self.assertIn("/static/app.css", body)
+        self.assertIn('src="static/app.js"', body)
+        self.assertIn('href="static/app.css"', body)
 
     def test_index_is_well_formed(self):
         p = parse(get("/")[2])

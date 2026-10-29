@@ -3,6 +3,7 @@
   python -m labsim run --scenario leader_crash --seed 7 [--html out.html] [--text out.txt]
   python -m labsim compare --seeds 0..49 [--html compare.html]
   python -m labsim ui [--port 8000] [--no-browser]
+  python -m labsim build-site [--out _site]
 """
 
 import argparse
@@ -47,6 +48,12 @@ def cmd_ui(args):
     return 0
 
 
+def cmd_build_site(args):
+    from labsim.build_site import build
+    print(f"static site written to {build(args.out)}")
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="labsim")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -72,6 +79,10 @@ def main(argv=None):
     web.add_argument("--port", type=int, default=8000)
     web.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
     web.set_defaults(fn=cmd_ui)
+
+    site = sub.add_parser("build-site", help="build the static GitHub Pages site")
+    site.add_argument("--out", default="_site")
+    site.set_defaults(fn=cmd_build_site)
 
     args = p.parse_args(argv)
     return args.fn(args)

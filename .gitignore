@@ -1,4 +1,6 @@
 __pycache__/
 *.pyc
 out/
+_site/
 .claude/
+.wrangler/

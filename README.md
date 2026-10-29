@@ -30,6 +30,20 @@ python -m labsim compare --seeds 0..49 --html out/compare.html
 python -m unittest discover -s tests -v
 ```
 
+## Live demo
+
+**https://raft-failure-lab.pages.dev**: no install needed. There is no backend; the `labsim`
+package runs in your browser through [Pyodide](https://pyodide.org) (Python on WebAssembly)
+inside a Web Worker. It answers the same API as the local server via `ui.handle()`, so a seed
+gives exactly the same run online and locally. The first load takes a few seconds.
+
+Deploy your own copy (static, any host):
+
+```bash
+python -m labsim build-site --out _site
+npx wrangler pages deploy        # Cloudflare Pages, settings in wrangler.toml
+```
+
 ## Scenarios
 
 | Scenario | Fault |

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Raft Failure Lab</title>
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="static/app.css">
 </head>
 <body>
 <header class="top">
@@ -23,6 +23,7 @@
     <button data-view="find" role="tab">Findings</button>
   </nav>
   <div class="top-right">
+    <span class="mode" id="mode"></span>
     <span class="runpill" id="runpill"></span>
     <button class="icon" id="theme" title="Toggle light / dark">◐</button>
   </div>
@@ -167,8 +168,15 @@
   </section>
 </main>
 
+<div id="boot" class="boot" hidden>
+  <div class="boot-card">
+    <div class="spinner"></div>
+    <b>Loading the simulator</b>
+    <p id="bootmsg">Starting Python in your browser (Pyodide). This takes a few seconds the first time.</p>
+  </div>
+</div>
 <div id="tip" class="tip" hidden></div>
 <div id="toast" class="toast" hidden></div>
-<script src="/static/app.js"></script>
+<script src="static/app.js"></script>
 </body>
 </html>
