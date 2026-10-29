@@ -42,9 +42,9 @@ DESCRIPTIONS = {name: info[1] for name, info in SCENARIO_INFO.items()}
 INVARIANTS = [
     {"id": "election_safety", "name": "Election safety", "desc": "At most one leader per term."},
     {"id": "committed_lost", "name": "Committed never lost",
-     "desc": "A committed entry is never erased and every later leader has it."},
+     "desc": "Committed entries are never erased, and every later leader has them."},
     {"id": "log_divergence", "name": "No divergence",
-     "desc": "No two nodes commit different entries at the same index."},
+     "desc": "No two servers commit different entries at the same position."},
 ]
 
 MAX_COMPARE_SEEDS = 100
