@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raft Failure Lab</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="5" r="3.2"></circle><circle cx="26.5" cy="12.6" r="3.2"></circle>
+      <circle cx="22.5" cy="25" r="3.2"></circle><circle cx="9.5" cy="25" r="3.2"></circle>
+      <circle cx="5.5" cy="12.6" r="3.2"></circle>
+      <path d="M16 5 L26.5 12.6 L22.5 25 L9.5 25 L5.5 12.6 Z"></path>
+    </svg>
+    <div><b>Raft Failure Lab</b><span>Deterministic fault-injection simulator</span></div>
+  </div>
+  <nav class="views" role="tablist">
+    <button data-view="sim" class="on" role="tab">Simulate</button>
+    <button data-view="cmp" role="tab">Compare</button>
+    <button data-view="find" role="tab">Findings</button>
+  </nav>
+  <div class="top-right">
+    <span class="runpill" id="runpill"></span>
+    <button class="icon" id="theme" title="Toggle light / dark">◐</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ SIMULATE ============ -->
+  <section id="view-sim" class="sim">
+    <aside class="side">
+      <div class="side-sec">
+        <h3>Scenario</h3>
+        <div id="scenarios" class="scen-list"></div>
+      </div>
+      <div class="side-sec">
+        <h3>Seed</h3>
+        <div class="row">
+          <input id="seed" type="number" min="0" value="0">
+          <button class="ghost" id="dice" title="Random seed">Random</button>
+        </div>
+        <p class="hint">Same seed, same run. Every time.</p>
+      </div>
+      <div class="side-sec">
+        <h3>Election timeout</h3>
+        <div class="seg" id="strat"></div>
+        <div class="row custom" id="customrow">
+          <input id="lo" type="number" min="10" value="150"><span>to</span>
+          <input id="hi" type="number" min="10" value="300"><span>ms</span>
+        </div>
+      </div>
+      <button class="primary" id="runbtn">Run simulation</button>
+      <div class="err" id="err"></div>
+      <div class="keys">
+        <div><kbd>Space</kbd> play / pause</div>
+        <div><kbd>←</kbd> <kbd>→</kbd> step event</div>
+        <div><kbd>V</kbd> next violation</div>
+      </div>
+    </aside>
+
+    <div class="work">
+      <div class="inv-row" id="invariants"></div>
+      <div class="metrics" id="metrics"></div>
+
+      <div class="stage">
+        <div class="panel cluster-panel">
+          <div class="panel-h">
+            <span class="ttl">Cluster</span>
+            <span class="sub" id="netstate"></span>
+          </div>
+          <svg id="cluster" viewBox="0 0 440 380" role="img" aria-label="Cluster state"></svg>
+          <div class="legend" id="msglegend"></div>
+        </div>
+        <div class="panel log-panel">
+          <div class="panel-h">
+            <span class="ttl">Replicated logs</span>
+            <span class="sub">color = term · solid = committed · red ring = conflicts with a committed entry</span>
+          </div>
+          <div id="logmatrix" class="logmatrix"></div>
+          <div id="scenario-steps" class="steps"></div>
+        </div>
+      </div>
+
+      <div class="panel transport">
+        <div class="controls">
+          <button class="icon" id="b-start" title="Start (Home)">⏮</button>
+          <button class="icon" id="b-prev" title="Previous event (←)">◀</button>
+          <button class="play" id="b-play" title="Play / pause (Space)">▶</button>
+          <button class="icon" id="b-next" title="Next event (→)">▶</button>
+          <button class="icon" id="b-end" title="End (End)">⏭</button>
+          <div class="clock"><b id="clock">0.0</b><span> ms</span><span class="of" id="clockof"></span></div>
+          <label class="speed">Speed
+            <select id="speed">
+              <option value="10">0.1×</option><option value="25">0.25×</option>
+              <option value="50">0.5×</option><option value="100" selected>1×</option>
+              <option value="250">2.5×</option><option value="500">5×</option>
+              <option value="1500">15×</option>
+            </select>
+          </label>
+          <span class="spacer"></span>
+          <button class="ghost danger" id="b-viol" hidden>Jump to violation</button>
+          <button class="ghost" id="b-link" title="Copy a link that reopens this exact run">Copy link</button>
+          <a class="ghost" id="b-classic" target="_blank" rel="noopener">Classic timeline ↗</a>
+        </div>
+        <canvas id="lanes" aria-label="Timeline: click or drag to seek"></canvas>
+        <div class="lane-legend">
+          <span><i class="sw follower"></i>follower</span><span><i class="sw candidate"></i>candidate</span>
+          <span><i class="sw leader"></i>leader</span><span><i class="sw crashed"></i>crashed</span>
+          <span><i class="sw part"></i>partition</span><span><i class="sw degraded"></i>degraded network</span>
+          <span><i class="sw viol"></i>violation</span><span class="hint">1× = 100 simulated ms per second</span>
+        </div>
+      </div>
+
+      <div class="panel events">
+        <div class="panel-h">
+          <span class="ttl">Event feed</span>
+          <div class="chips" id="chips"></div>
+          <span class="spacer"></span>
+          <span class="sub" id="nodefilter"></span>
+          <input id="search" type="search" placeholder="Search events…">
+        </div>
+        <div id="evlist" class="evlist"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMPARE ============ -->
+  <section id="view-cmp" class="page" hidden>
+    <div class="page-h">
+      <h1>Compare recovery strategies</h1>
+      <p>Both election-timeout settings run on the <b>same</b> scenarios and the <b>same</b> seeds.
+        Results are averaged per scenario; violations are totals.</p>
+    </div>
+    <div class="panel cmp-form">
+      <div class="cmp-grid">
+        <div>
+          <h3>Scenarios</h3>
+          <div class="chips big" id="cmpscen"></div>
+        </div>
+        <div>
+          <h3>Seeds</h3>
+          <div class="row">
+            <input id="s0" type="number" min="0" value="0"><span>to</span>
+            <input id="s1" type="number" min="0" value="19">
+          </div>
+          <p class="hint" id="cmpcount"></p>
+        </div>
+        <div class="cmp-go">
+          <button class="primary" id="cmpbtn">Run comparison</button>
+          <div class="err" id="cmperr"></div>
+        </div>
+      </div>
+      <div class="progress" id="cmpprog" hidden><i></i></div>
+    </div>
+    <div id="cmpout"></div>
+  </section>
+
+  <!-- ============ FINDINGS ============ -->
+  <section id="view-find" class="page" hidden>
+    <div class="find-grid">
+      <nav class="toc" id="toc"></nav>
+      <article class="md panel" id="findings"></article>
+    </div>
+  </section>
+</main>
+
+<div id="tip" class="tip" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
