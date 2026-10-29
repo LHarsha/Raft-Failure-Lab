@@ -52,3 +52,8 @@ Each entry: date, milestone, seed/scenario, symptom, root cause, fix (or "expect
 - **Bug:** a fallback string in `ui.api_findings()` got a literal newline while the file was being rewritten, so `ui.py` failed to import. The test suite caught it immediately (`test_ui` import error).
 - **Verification of the failure view:** a correct Raft never produces violations, so the red state was checked against a throwaway server (scratchpad only) with the naive §5.4.2 commit rule patched in. For `figure8` seed 0 the UI showed `committed_lost` (5) and `log_divergence` (1). "Jump to violation" landed at 1566 ms, with the banner directly under n3's term-6 `became_leader`, which matches the CLI checker output.
 
+## 2026-10-29 · Checker · crash on a commit index beyond the end of the log
+- **Symptom:** a mutation experiment (vote up-to-date check removed, `flapping_partition`) crashed the checker with `IndexError` in the end-of-run divergence check.
+- **Root cause:** with the broken vote rule, a node truncates entries it has already committed, so its final `commit_index` points past the end of its log. The pairwise prefix comparison indexed up to the commit index without checking the log length. A correct Raft never reaches this state, which is why the scenario tests never hit it.
+- **Fix:** a commit index larger than the log is now reported as `committed_lost`, and the prefix comparison stops at the shorter log. Test: `test_commit_index_beyond_log_is_flagged_not_crash`. Lesson: the checker has to be most robust exactly when the system under test is most broken.
+

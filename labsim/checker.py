@@ -108,8 +108,13 @@ def check(trace):
             if len(holders) < majority:
                 flag(("majority", index), "committed_lost", at, [c.event.node],
                      f"committed entry {index} (t{c.term} {c.cmd!r}) only on {holders} at end")
+        for f in finals:
+            if f.data["commit_index"] > len(f.data["log"]):
+                flag(("short_log", f.node), "committed_lost", at, [f.node],
+                     f"n{f.node} claims commit index {f.data['commit_index']} but its log has only "
+                     f"{len(f.data['log'])} entries")
         for a, b in combinations(finals, 2):
-            n = min(a.data["commit_index"], b.data["commit_index"])
+            n = min(a.data["commit_index"], b.data["commit_index"], len(a.data["log"]), len(b.data["log"]))
             for i in range(n):
                 if tuple(a.data["log"][i]) != tuple(b.data["log"][i]):
                     flag(("final_diverge", a.node, b.node), "log_divergence", at, [a.node, b.node],

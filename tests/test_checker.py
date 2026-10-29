@@ -127,6 +127,16 @@ class NoDivergenceTest(unittest.TestCase):
              .final(2, 0, []))
         self.assertIn("log_divergence", invariants(t.events))
 
+    def test_commit_index_beyond_log_is_flagged_not_crash(self):
+        # a buggy node can truncate entries it already committed; its final
+        # commit index then points past the end of its log
+        t = (T().final(0, 3, [(1, "a")])
+             .final(1, 3, [(1, "a"), (1, "b"), (1, "c")])
+             .final(2, 3, [(1, "a"), (1, "b"), (1, "c")]))
+        vs = check(t.events)
+        self.assertEqual([v.invariant for v in vs], ["committed_lost"])
+        self.assertEqual(vs[0].nodes, (0,))
+
     def test_uncommitted_suffix_may_differ(self):
         t = (T().final(0, 1, [(1, "a"), (1, "b")])
              .final(1, 1, [(1, "a"), (2, "c")]))
